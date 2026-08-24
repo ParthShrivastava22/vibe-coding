@@ -3,7 +3,6 @@ import type { Subscription, SubscriptionWithComputedFields } from "./types";
 const RENEWING_SOON_THRESHOLD_DAYS = 7;
 const MONTHS_PER_YEAR = 12;
 
-/** Normalizes any billing cycle into an equivalent monthly cost. */
 export function normalizeToMonthlyCost(
   cost: number,
   billingCycle: Subscription["billingCycle"],
@@ -15,14 +14,31 @@ export function normalizeToMonthlyCost(
 }
 
 /**
+ * Parses a "YYYY-MM-DD" calendar-date string into a local Date at midnight.
+ * Avoids `new Date("YYYY-MM-DD")`, which parses as UTC and can shift the
+ * date by a day depending on the server's timezone offset.
+ */
+function parseLocalDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+/**
  * Days remaining until the renewal date, counted from `from` (defaults to now).
- * Uses whole calendar days, ignoring time-of-day, so "today" is 0.
+ * Both dates are compared as local calendar dates at midnight, so "today"
+ * is 0, tomorrow is 1, yesterday is -1.
  */
 export function calculateDaysUntilRenewal(
   nextRenewalDate: string,
   from: Date = new Date(),
 ): number {
-  const renewalDate = startOfDay(new Date(nextRenewalDate));
+  const renewalDate = parseLocalDateString(nextRenewalDate);
   const today = startOfDay(from);
 
   const msPerDay = 1000 * 60 * 60 * 24;
@@ -31,12 +47,16 @@ export function calculateDaysUntilRenewal(
   return Math.round(diffMs / msPerDay);
 }
 
-/** A subscription is "renewing soon" if it renews within the next 7 days (inclusive) and isn't already overdue in a way that's stale — negative just means overdue, still flagged. */
+/**
+ * A subscription is "renewing soon" when it renews today or within the
+ * next 7 days. Overdue (negative) subscriptions are NOT renewing soon.
+ */
 export function isRenewingSoon(daysUntilRenewal: number): boolean {
-  return daysUntilRenewal <= RENEWING_SOON_THRESHOLD_DAYS;
+  return (
+    daysUntilRenewal >= 0 && daysUntilRenewal <= RENEWING_SOON_THRESHOLD_DAYS
+  );
 }
 
-/** Attaches monthlyCost, daysUntilRenewal, and isRenewingSoon to a raw subscription. */
 export function withComputedFields(
   subscription: Subscription,
   from: Date = new Date(),
@@ -57,7 +77,6 @@ export function withComputedFields(
   };
 }
 
-/** Sum of normalized monthly cost across active subscriptions only. */
 export function calculateMonthlyBurnRate(
   subscriptions: Subscription[],
 ): number {
@@ -70,7 +89,6 @@ export function calculateMonthlyBurnRate(
     );
 }
 
-/** Count of active subscriptions renewing within the threshold window. */
 export function countUpcomingRenewals(
   subscriptions: Subscription[],
   from: Date = new Date(),
@@ -80,10 +98,4 @@ export function countUpcomingRenewals(
     const days = calculateDaysUntilRenewal(sub.nextRenewalDate, from);
     return isRenewingSoon(days);
   }).length;
-}
-
-function startOfDay(date: Date): Date {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
 }
