@@ -169,18 +169,16 @@ export function SubscriptionForm({ onCreated }: SubscriptionFormProps) {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Next Renewal Date</label>
             <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
+              <PopoverTrigger>
+                <span
                   className={cn(
-                    "justify-start text-left font-normal",
+                    "flex h-9 w-full cursor-pointer items-center rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs",
                     !date && "text-muted-foreground",
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date ? formatRenewalDate(dateToYMD(date)) : "Pick a date"}
-                </Button>
+                </span>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar mode="single" selected={date} onSelect={setDate} />
