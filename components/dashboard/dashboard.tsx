@@ -24,10 +24,13 @@ export function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       setError(null);
+
       const res = await fetch("/api/subscriptions");
+
       if (!res.ok) {
         throw new Error("Failed to load subscriptions");
       }
+
       const json: DashboardData = await res.json();
       setData(json);
     } catch {
@@ -38,7 +41,11 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    const loadDashboard = async () => {
+      await fetchData();
+    };
+
+    loadDashboard();
   }, [fetchData]);
 
   return (
